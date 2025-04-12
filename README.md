@@ -83,4 +83,14 @@ Attack on Titan - 02.mkv
 Specials/
   Attack on Titan - 01 - Special.mp4
 ```
-© Artur Flis, 2025 All rights saved. 
+<hr>
+<p align="center">
+<a href="https://www.star-history.com/#Panonim/ReNamed&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Panonim/ReNamed&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Panonim/ReNamed&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Panonim/ReNamed&type=Date" />
+ </picture>
+</a>
+</p>
+© 2025 Artur Flis. All Rights Reserved.
