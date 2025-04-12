@@ -83,3 +83,4 @@ Attack on Titan - 02.mkv
 Specials/
   Attack on Titan - 01 - Special.mp4
 ```
+© Artur Flis, 2025 All rights saved. 
