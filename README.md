@@ -29,7 +29,7 @@ This utility scans a folder of video files (or optionally any files), detects th
 
 2. Compile the program:
    ```bash
-   gcc -o renamed main.c -Wall
+   gcc -o renamed main.c
    ```
 
 3. Run it:
