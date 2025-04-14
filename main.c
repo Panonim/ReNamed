@@ -319,6 +319,15 @@ int main(int argc, char *argv[]) {
     printf("%-70s -> %s\n", "Original Filename", "New Filename");
     printf("--------------------------------------------------------------------------------\n");
 
+    /* Check if any special episodes exist */
+    int has_special_episodes = 0;
+    for (int i = 0; i < file_count; i++) {
+        if (files[i].is_special) {
+            has_special_episodes = 1;
+            break;
+        }
+    }
+
     for (int i = 0; i < file_count; i++) {
         char orig_truncated[71] = {0};
         strncpy(orig_truncated, files[i].original_name, 70);
@@ -341,9 +350,11 @@ int main(int argc, char *argv[]) {
     }
 
     if (strncasecmp(confirm, "yes", 3) == 0 || strncasecmp(confirm, "y", 1) == 0) {
-        /* Create specials directory if needed */
-        if (create_directory(specials_path)) {
-            printf("Created 'Specials' directory.\n");
+        /* Create specials directory only if special episodes exist */
+        if (has_special_episodes) {
+            if (create_directory(specials_path)) {
+                printf("Created 'Specials' directory.\n");
+            }
         }
         
         /* Perform renaming */
@@ -378,7 +389,11 @@ int main(int argc, char *argv[]) {
         printf("\nRenaming complete!\n");
         printf("- %d of %d files successfully renamed\n", success_count, file_count);
         printf("- %d regular episodes\n", regular_count);
-        printf("- %d special episodes moved to Specials folder\n", special_count);
+        printf("- %d special episodes", special_count);
+        if (special_count > 0) {
+            printf(" moved to Specials folder");
+        }
+        printf("\n");
     } else {
         printf("Operation cancelled.\n");
     }
