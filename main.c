@@ -202,7 +202,7 @@ void print_usage(char *program_name) {
     printf("  -v           Display version information\n");
     printf("  -h           Display this help message\n");
     printf("  -f           Force renaming of all file types (not just video files)\n");
-    printf("  -k           Keep original files (create backups)\n");
+    printf("  -k           Keep original files\n");
     printf("  -p <path>    Specify custom output path for renamed files\n\n");
     printf("If no options are provided, the program runs in interactive mode.\n");
 }
