@@ -52,6 +52,8 @@ You can also use flags:
 - `-v` Show version info
 - `-h` Show usage instructions
 - `-f` Force mode – includes *all* files, not just video formats (`.mp4`, `.mkv`, `.avi`)
+- `-p` Specify custom output path
+- `-k` Keep original files
 
 Example:
 ```bash
