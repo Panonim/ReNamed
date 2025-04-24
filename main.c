@@ -10,7 +10,7 @@
 /* Program constants */
 #define MAX_PATH 1024
 #define MAX_FILES 1000
-#define VERSION "a.1"
+#define VERSION "a.2"
 #define REPO_URL "https://github.com/Panonim/ReNamed"
 
 /* File entry structure to store file information */
@@ -23,7 +23,9 @@ typedef struct {
 
 /* Global configuration */
 typedef struct {
-    int force_mode;  /* Force renaming of all file types */
+    int force_mode;      /* Force renaming of all file types */
+    int keep_originals;  /* Keep original files (create backups) */
+    char output_path[MAX_PATH]; /* Custom output path */
 } ProgramConfig;
 
 /* Get file extension from filename */
@@ -139,6 +141,39 @@ int create_directory(const char *path) {
     return 1; /* Directory already exists */
 }
 
+/* Copy a file from source to destination */
+int copy_file(const char *source, const char *destination) {
+    FILE *src, *dst;
+    char buffer[4096];
+    size_t bytes_read;
+    
+    src = fopen(source, "rb");
+    if (!src) {
+        printf("Error opening source file '%s': %s\n", source, strerror(errno));
+        return 0;
+    }
+    
+    dst = fopen(destination, "wb");
+    if (!dst) {
+        printf("Error opening destination file '%s': %s\n", destination, strerror(errno));
+        fclose(src);
+        return 0;
+    }
+    
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        if (fwrite(buffer, 1, bytes_read, dst) != bytes_read) {
+            printf("Error writing to destination file '%s': %s\n", destination, strerror(errno));
+            fclose(src);
+            fclose(dst);
+            return 0;
+        }
+    }
+    
+    fclose(src);
+    fclose(dst);
+    return 1;
+}
+
 /* Compare function for sorting files */
 int compare_files(const void *a, const void *b) {
     FileEntry *fileA = (FileEntry *)a;
@@ -166,7 +201,9 @@ void print_usage(char *program_name) {
     printf("Options:\n");
     printf("  -v           Display version information\n");
     printf("  -h           Display this help message\n");
-    printf("  -f           Force renaming of all file types (not just video files)\n\n");
+    printf("  -f           Force renaming of all file types (not just video files)\n");
+    printf("  -k           Keep original files (create backups)\n");
+    printf("  -p <path>    Specify custom output path for renamed files\n\n");
     printf("If no options are provided, the program runs in interactive mode.\n");
 }
 
@@ -182,7 +219,7 @@ int main(int argc, char *argv[]) {
     int opt;
 
     /* Use getopt for command line parsing */
-    while ((opt = getopt(argc, argv, "vhf")) != -1) {
+    while ((opt = getopt(argc, argv, "vhfkp:")) != -1) {
         switch (opt) {
             case 'v':
                 print_version();
@@ -193,6 +230,13 @@ int main(int argc, char *argv[]) {
             case 'f':
                 config.force_mode = 1;
                 break;
+            case 'k':
+                config.keep_originals = 1;
+                break;
+            case 'p':
+                strncpy(config.output_path, optarg, MAX_PATH - 1);
+                config.output_path[MAX_PATH - 1] = '\0';
+                break;
             default:
                 printf("Unknown option: %c\n", opt);
                 print_usage(argv[0]);
@@ -202,6 +246,7 @@ int main(int argc, char *argv[]) {
 
     char show_name[MAX_PATH];
     char folder_path[MAX_PATH];
+    char destination_path[MAX_PATH] = {0};
     char specials_path[MAX_PATH];
     char confirm[10];
     FileEntry files[MAX_FILES];
@@ -223,7 +268,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Get folder path from user */
-    printf("Enter folder path: ");
+    printf("Enter folder path with source files: ");
     if (fgets(folder_path, sizeof(folder_path), stdin) == NULL) {
         printf("Error reading input.\n");
         return 1;
@@ -235,8 +280,40 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    /* If output path not specified via command line, use source path or ask user */
+    if (strlen(config.output_path) == 0) {
+        if (config.keep_originals) {
+            /* Ask for destination path when keeping originals */
+            printf("Enter destination folder path for renamed files: ");
+            if (fgets(destination_path, sizeof(destination_path), stdin) == NULL) {
+                printf("Error reading input.\n");
+                return 1;
+            }
+            destination_path[strcspn(destination_path, "\n")] = 0; /* Remove newline */
+            
+            if (strlen(destination_path) == 0) {
+                printf("Destination path cannot be empty when using backup mode.\n");
+                return 1;
+            }
+        } else {
+            /* Use source folder as destination (for in-place renaming) */
+            strncpy(destination_path, folder_path, MAX_PATH - 1);
+            destination_path[MAX_PATH - 1] = '\0';
+        }
+    } else {
+        /* Use path provided from command line */
+        strncpy(destination_path, config.output_path, MAX_PATH - 1);
+        destination_path[MAX_PATH - 1] = '\0';
+    }
+
+    /* Create destination directory if it doesn't exist */
+    if (!create_directory(destination_path)) {
+        printf("Error: Failed to create destination directory '%s'\n", destination_path);
+        return 1;
+    }
+
     /* Create path for specials directory */
-    snprintf(specials_path, sizeof(specials_path), "%s/Specials", folder_path);
+    snprintf(specials_path, sizeof(specials_path), "%s/Specials", destination_path);
 
     /* Try to open directory */
     dir = opendir(folder_path);
@@ -316,7 +393,19 @@ int main(int argc, char *argv[]) {
 
     /* Display the rename plan */
     printf("\nFound %d files. Rename Plan:\n", file_count);
-    printf("%-70s -> %s\n", "Original Filename", "New Filename");
+    
+    /* Show operation mode */
+    if (config.keep_originals) {
+        printf("Operation mode: Copying files (keeping originals)\n");
+        printf("Destination directory: %s\n", destination_path);
+    } else {
+        printf("Operation mode: Moving/renaming files\n");
+        if (strcmp(folder_path, destination_path) != 0) {
+            printf("Destination directory: %s\n", destination_path);
+        }
+    }
+    
+    printf("\n%-70s -> %s\n", "Original Filename", "New Filename");
     printf("--------------------------------------------------------------------------------\n");
 
     /* Check if any special episodes exist */
@@ -343,21 +432,29 @@ int main(int argc, char *argv[]) {
     }
 
     /* Ask for confirmation */
-    printf("\nContinue with renaming? (yes/no): ");
+    printf("\nContinue with %s? (yes/no): ", config.keep_originals ? "copying" : "renaming");
     if (fgets(confirm, sizeof(confirm), stdin) == NULL) {
         printf("Error reading input.\n");
         return 1;
     }
 
     if (strncasecmp(confirm, "yes", 3) == 0 || strncasecmp(confirm, "y", 1) == 0) {
+        /* Create destination directory if different from source */
+        if (strcmp(folder_path, destination_path) != 0) {
+            if (!create_directory(destination_path)) {
+                printf("Error: Failed to create destination directory '%s'\n", destination_path);
+                return 1;
+            }
+        }
+    
         /* Create specials directory only if special episodes exist */
         if (has_special_episodes) {
             if (create_directory(specials_path)) {
-                printf("Created 'Specials' directory.\n");
+                printf("Created 'Specials' directory in '%s'.\n", destination_path);
             }
         }
         
-        /* Perform renaming */
+        /* Perform renaming/copying */
         int success_count = 0;
         int special_count = 0;
         int regular_count = 0;
@@ -372,22 +469,35 @@ int main(int argc, char *argv[]) {
                 snprintf(new_path, sizeof(new_path), "%s/%s", specials_path, files[i].new_name);
                 special_count++;
             } else {
-                snprintf(new_path, sizeof(new_path), "%s/%s", folder_path, files[i].new_name);
+                snprintf(new_path, sizeof(new_path), "%s/%s", destination_path, files[i].new_name);
                 regular_count++;
             }
 
-            if (rename(old_path, new_path) == 0) {
-                success_count++;
+            if (config.keep_originals) {
+                /* Copy the file instead of renaming */
+                if (copy_file(old_path, new_path)) {
+                    success_count++;
+                    printf("Copied '%s' to '%s'\n", files[i].original_name, new_path);
+                } else {
+                    printf("Error copying '%s' to '%s'\n", files[i].original_name, new_path);
+                }
             } else {
-                printf("Error renaming '%s' to '%s': %s\n", 
-                       files[i].original_name, 
-                       files[i].new_name,
-                       strerror(errno));
+                /* Rename/move the file */
+                if (rename(old_path, new_path) == 0) {
+                    success_count++;
+                } else {
+                    printf("Error renaming '%s' to '%s': %s\n", 
+                          files[i].original_name, 
+                          files[i].new_name,
+                          strerror(errno));
+                }
             }
         }
 
-        printf("\nRenaming complete!\n");
-        printf("- %d of %d files successfully renamed\n", success_count, file_count);
+        printf("\nOperation complete!\n");
+        printf("- %d of %d files successfully %s\n", 
+               success_count, file_count, 
+               config.keep_originals ? "copied" : "renamed");
         printf("- %d regular episodes\n", regular_count);
         printf("- %d special episodes", special_count);
         if (special_count > 0) {
