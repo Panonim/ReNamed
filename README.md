@@ -13,7 +13,7 @@
 </a>
 </p>
 
-# Renamed 
+# ReNamed 
 **ReNamed** is a simple, terminal-based C tool that helps you automatically rename and organize episodes of TV shows — including specials — with clean, consistent filenames.
 
 ## 💡 What it Does
